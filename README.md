@@ -60,7 +60,6 @@ Outras imagens: `imagens/`.
 
 ## Documentação (PDF)
 
-- `docs/pdf/MiniCPU4_computador_portas_logicas.pdf`: projeto, lista de compras e ligações pino a pino.
 - `docs/pdf/MiniCPU4B_seletor_com_computador.pdf`: versão com tabela de consulta (LUT).
 - `docs/pdf/MiniCPU4_todas_portas_trocadas_por_celulas.pdf`: o computador com todas as portas trocadas por células.
 - `docs/pdf/planta_logisim_computador_completo.pdf`: as 355 células em 9 páginas.
