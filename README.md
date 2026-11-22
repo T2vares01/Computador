@@ -43,7 +43,7 @@ Exemplo, contagem regressiva de 5 até 0: `LDI 5`, `SUB 1`, `JZ 4`, `JMP 1`, `HL
 
 ### Simuladores
 
-- **Navegador:** `docs/index.html` (com o GitHub Pages ligado, abre em `https://t2vares01.github.io/Computador-1.0/`).
+- **Navegador:** `index.html` (com o GitHub Pages ligado, abre em `https://t2vares01.github.io/Computador-1.0/`).
 - **Terminal:** `python3 simulador/minicpu4_simulador.py` (comandos: `p`, `ex`, `s`, `r`, `reset`, `ajuda`).
 - **Lista de células:** `dados/MiniCPU4_netlist_celulas.csv`, gerada por `simulador/gerar_netlist.py`.
 
