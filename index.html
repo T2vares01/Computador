@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MiniCPU-4 — simulador</title>
+<style>
+:root{--bg:#f6f7f9;--fg:#1b1f24;--mut:#5b6573;--card:#fff;--bd:#d0d5dd;--ac:#1d6fd8;--on:#16a34a;--off:#cbd5e1;--bad:#c62828;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#12151a;--fg:#e8ebf0;--mut:#9aa4b2;--card:#1b2028;--bd:#313946;--ac:#5aa2ff;--on:#4ade80;--off:#3a4350;--bad:#ff7a7a}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#12151a;--fg:#e8ebf0;--mut:#9aa4b2;--card:#1b2028;--bd:#313946;--ac:#5aa2ff;--on:#4ade80;--off:#3a4350;--bad:#ff7a7a}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,sans-serif}
+.w{max-width:820px;margin:0 auto;padding:14px}
+h1{font-size:20px;margin:4px 0}p.s{color:var(--mut);margin:0 0 12px;font-size:13px}
+.g{display:grid;grid-template-columns:1fr;gap:12px}@media(min-width:720px){.g{grid-template-columns:1.1fr 1fr}}
+.c{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px}
+h2{font-size:14px;margin:0 0 8px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.r{display:grid;grid-template-columns:22px 1fr 34px 86px;gap:6px;align-items:center;padding:3px 4px;border-radius:6px;font-family:ui-monospace,monospace;font-size:13px}
+.r.on{background:color-mix(in srgb,var(--ac) 18%,transparent)}
+.r input{font:inherit;width:100%;box-sizing:border-box;padding:4px 6px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--fg)}
+.r input.e{border-color:var(--bad)}.m{color:var(--mut)}
+.leds{display:flex;gap:14px;justify-content:center;margin:6px 0}
+.l{width:34px;height:34px;border-radius:50%;background:var(--off);border:2px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--mut)}
+.l.on{background:var(--on);color:#fff;box-shadow:0 0 12px var(--on)}
+.big{text-align:center;font:600 22px ui-monospace,monospace}
+.bt{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+button,select{font:inherit;padding:8px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--fg);cursor:pointer}
+button.p{background:var(--ac);border-color:var(--ac);color:#fff}
+.st{font-size:13px;color:var(--mut);margin-top:8px;text-align:center}
+</style></head><body><div class="w">
+<h1>MiniCPU-4 — simulador</h1>
+<p class="s">Computador de 4 bits em que cada uma das <span id="n"></span> portas é uma célula do circuito revisado (A, B, P, N). Entrada: o programa e o clock. Saída: os LEDs do acumulador.</p>
+<div class="g">
+<div class="c"><h2>Entrada: programa (ROM de 8 posições)</h2>
+<div style="margin-bottom:8px"><select id="ex"></select></div>
+<div id="rom"></div>
+<p class="s" style="margin:8px 0 0">Escreva como <b>LDI 5</b>, <b>ADD 1</b>, <b>JMP 1</b> ou em hexadecimal (ex.: 15). Instruções: NOP, LDI, ADD, SUB, AND, OR, XOR, JMP, JZ, HLT.</p></div>
+<div class="c"><h2>Saída</h2>
+<div class="leds" id="leds"></div>
+<div class="big" id="val"></div>
+<div class="st" id="ins"></div>
+<div class="bt"><button class="p" id="step">Passo (1 clock)</button><button id="run">Executar</button><button id="rst">Reset</button></div>
+<div class="bt"><label class="m">Velocidade <input type="range" id="sp" min="1" max="30" value="4"></label></div>
+<div class="st" id="cy"></div></div>
+</div></div>
+<script>
+// ---------- netlist: todas as portas viram células ----------
+const MAP={AND:[0,1,0],OR:[1,0,0],NOR:[0,0,0],NOT:[0,0,0],NAND:[0,1,1],XOR:[1,1,1]};
+const cell=(a,b,p,n,nt)=>{const g2=a|b;const o=(a&b&(1-p)&n)|(g2&p&(1-n))|((1-(a^b))&p&n)|(1-(g2|p|n));return nt?1-o:o};
+const G=[];let cn=0;const nn=()=>'n'+(++cn);
+const g=(t,a,b,o)=>{o=o||nn();G.push([t,a,b==null?a:b,o]);return o};
+const NOT=(a,o)=>g('NOT',a,null,o),AND=(a,b)=>g('AND',a,b),OR=(a,b)=>g('OR',a,b),XOR=(a,b)=>g('XOR',a,b),NOR=(a,b)=>g('NOR',a,b),NAND=(a,b,o)=>g('NAND',a,b,o);
+const ORn=l=>l.reduce((x,y)=>OR(x,y)),ANDn=l=>l.reduce((x,y)=>AND(x,y));
+const mux=(s,ns,a0,a1)=>OR(AND(a0,ns),AND(a1,s));
+const latch=(d,e)=>{const nd=NOT(d),s=NAND(d,e),r=NAND(nd,e),q=nn(),qb=nn();NAND(s,qb,q);NAND(r,q,qb);return q};
+const ff=(d,out)=>{const m=latch(d,'nclk'),nd=NOT(m),s=NAND(m,'CLK'),r=NAND(nd,'CLK'),qb=nn();NAND(s,qb,out);NAND(r,out,qb)};
+const R4=[0,1,2,3];
+NOT('CLK','nclk');
+const pc=['pc0','pc1','pc2'],npc=pc.map(x=>NOT(x));
+const sel=[...Array(8).keys()].map(w=>ANDn([0,1,2].map(i=>(w>>i)&1?pc[i]:npc[i])));
+const I=[...Array(8).keys()].map(k=>ORn(sel.map((s,w)=>AND(s,'SW'+w+'_'+k))));
+const imm=I.slice(0,4),op=I.slice(4),nop=op.map(x=>NOT(x));
+const D={};[1,2,3,4,5,6,7,8,15].forEach(k=>D[k]=ANDn(R4.map(i=>(k>>i)&1?op[i]:nop[i])));
+const nD1=NOT(D[1]),acc=['a0','a1','a2','a3'];
+const Ae=acc.map(a=>AND(a,nD1)),Be=imm.map(x=>XOR(x,D[3]));
+let car=D[3];const SUM=[];
+R4.forEach(i=>{const x=XOR(Ae[i],Be[i]);SUM.push(XOR(x,car));if(i<3)car=OR(AND(Ae[i],Be[i]),AND(x,car))});
+const AN=R4.map(i=>AND(Ae[i],Be[i])),OU=R4.map(i=>OR(Ae[i],Be[i])),XO=R4.map(i=>XOR(Ae[i],Be[i]));
+const sA=NOR(OR(D[4],D[5]),D[6]);
+const R=R4.map(i=>ORn([AND(SUM[i],sA),AND(AN[i],D[4]),AND(OU[i],D[5]),AND(XO[i],D[6])]));
+const WE=ORn([1,2,3,4,5,6].map(k=>D[k])),nWE=NOT(WE);
+R4.forEach(i=>ff(AND(mux(WE,nWE,acc[i],R[i]),'RST_N'),acc[i]));
+const Z=NOR(OR('a0','a1'),OR('a2','a3')),LD=OR(D[7],AND(D[8],Z)),nLD=NOT(LD),HN=NOT(D[15]);
+const c0=AND('pc0',HN),c1=AND('pc1',c0);
+[XOR('pc0',HN),XOR('pc1',c0),XOR('pc2',c1)].forEach((s,i)=>ff(AND(mux(LD,nLD,s,imm[i]),'RST_N'),pc[i]));
+document.getElementById('n').textContent=G.length;
+// ---------- simulação ----------
+let v={},cyc=0,timer=null;
+const rom=[0,0,0,0,0,0,0,0];
+function settle(){for(let it=0;it<600;it++){let ch=false;for(const[t,a,b,o]of G){const m=MAP[t],r=cell(v[a]|0,v[b]|0,m[0],m[1],m[2]);if(v[o]!==r){v[o]=r;ch=true}}if(!ch)return}}
+function setRom(){for(let w=0;w<8;w++)for(let k=0;k<8;k++)v['SW'+w+'_'+k]=(rom[w]>>k)&1}
+function clk(){v.CLK=1;settle();v.CLK=0;settle()}
+function reset(){stop();v={CLK:0,RST_N:0};setRom();settle();clk();clk();v.RST_N=1;settle();cyc=0;draw()}
+function tick(){clk();cyc++;draw()}
+const pcv=()=>(v.pc0|0)+2*(v.pc1|0)+4*(v.pc2|0),acv=()=>R4.reduce((s,i)=>s+((v['a'+i]|0)<<i),0);
+// ---------- programa ----------
+const NM=['NOP','LDI','ADD','SUB','AND','OR','XOR','JMP','JZ'];NM[15]='HLT';
+const dis=b=>{const o=b>>4,n=b&15;return NM[o]===undefined?'???':(o===0||o===15?NM[o]:NM[o]+' '+n)};
+function parse(s){s=s.trim().toUpperCase();if(!s)return 0;if(/^[0-9A-F]{2}$/.test(s))return parseInt(s,16);
+const m=s.match(/^([A-Z]+)\s*(\d+)?$/);if(!m)return null;const o=NM.indexOf(m[1]);if(o<0)return null;const n=+(m[2]||0);return n>15?null:(o<<4)|n}
+const romEl=document.getElementById('rom');
+for(let w=0;w<8;w++){const r=document.createElement('div');r.className='r';r.id='r'+w;
+r.innerHTML='<span class="m">'+w+'</span><input id="i'+w+'" autocomplete="off"><span class="m" id="h'+w+'"></span><span class="m" id="b'+w+'"></span>';romEl.appendChild(r);
+r.querySelector('input').addEventListener('change',e=>{const p=parse(e.target.value);if(p===null){e.target.classList.add('e');return}
+e.target.classList.remove('e');rom[w]=p;fillRow(w);setRom();settle();draw()})}
+function fillRow(w){document.getElementById('i'+w).value=dis(rom[w]);document.getElementById('h'+w).textContent=rom[w].toString(16).toUpperCase().padStart(2,'0');
+document.getElementById('b'+w).textContent=rom[w].toString(2).padStart(8,'0').replace(/(.{4})/,'$1 ')}
+const EX={'Contagem regressiva (5 até 0)':['LDI 5','SUB 1','JZ 4','JMP 1','HLT'],'Contador binário':['LDI 0','ADD 1','JMP 1'],'Inverte os bits':['LDI 5','XOR 15','JMP 1'],'Soma 3 até estourar':['LDI 0','ADD 3','JMP 1']};
+const sx=document.getElementById('ex');for(const k in EX)sx.add(new Option(k,k));
+function loadEx(){const p=EX[sx.value];for(let w=0;w<8;w++){rom[w]=parse(p[w]||'NOP');fillRow(w)}reset()}
+sx.onchange=loadEx;
+// ---------- saída ----------
+const lw=document.getElementById('leds');R4.slice().reverse().forEach(i=>{const d=document.createElement('div');d.className='l';d.id='l'+i;d.textContent='a'+i;lw.appendChild(d)});
+function draw(){const a=acv(),p=pcv();R4.forEach(i=>document.getElementById('l'+i).classList.toggle('on',!!((a>>i)&1)));
+document.getElementById('val').textContent=a.toString(2).padStart(4,'0')+'  =  '+a;
+for(let w=0;w<8;w++)document.getElementById('r'+w).classList.toggle('on',w===p);
+const halted=(rom[p]>>4)===15;document.getElementById('ins').textContent='Próxima instrução: '+p+' → '+dis(rom[p])+(halted?'  (parado)':'');
+document.getElementById('cy').textContent='Clocks: '+cyc;if(halted)stop()}
+function stop(){if(timer){clearInterval(timer);timer=null}document.getElementById('run').textContent='Executar'}
+document.getElementById('step').onclick=()=>{stop();tick()};
+document.getElementById('rst').onclick=reset;
+function startRun(){stop();document.getElementById('run').textContent='Pausar';timer=setInterval(tick,1000/document.getElementById('sp').value)}
+document.getElementById('run').onclick=()=>timer?stop():startRun();
+document.getElementById('sp').oninput=()=>{if(timer)startRun()};
+loadEx();
+</script></body></html>
