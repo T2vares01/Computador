@@ -2,8 +2,6 @@
 
 Um circuito **seletor de função** (entradas A, B, P, N) e um **computador de 4 bits** (MiniCPU-4) construído a partir dele, com circuitos para o Logisim, simuladores em Python e no navegador, desenhos e documentação.
 
-> Projeto educacional. Os circuitos foram verificados por **simulação**. Nenhuma das placas ou montagens descritas aqui foi construída fisicamente.
-
 ## O seletor
 
 Duas chaves, **P** e **N**, escolhem qual porta lógica age sobre as entradas **A** e **B**:
