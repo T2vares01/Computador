@@ -53,7 +53,7 @@ Exemplo, contagem regressiva de 5 até 0: `LDI 5`, `SUB 1`, `JZ 4`, `JMP 1`, `HL
 
 | | |
 |---|---|
-| ![Placa](imagens/placa_computador_completo.png) | ![Planta](imagens/planta_estilo_logisim.png) |
+| ![Placa](placa_computador_completo.png) | ![Planta](planta_estilo_logisim.png) |
 | Placa do MiniCPU-4 com 27 CIs 74HC (desenho ilustrativo) | Planta do seletor no estilo Logisim |
 
 Outras imagens: `imagens/`.
