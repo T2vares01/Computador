@@ -87,10 +87,6 @@ imagens/     desenhos e diagramas
 tests/       testes automáticos
 ```
 
-## Relação com FPGA
-
-Um FPGA é formado por blocos programáveis chamados LUTs, tabelas que escolhem a saída a partir das entradas. O seletor funciona de forma parecida: P e N configuram qual função a célula executa. Na versão MiniCPU-4B, uma tabela de 16 chaves faz esse papel.
-
 ## Licença
 
-MIT. Veja `LICENSE`.
+ Veja `LICENSE`.
